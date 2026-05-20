@@ -471,7 +471,13 @@ int main(int argc, char** argv)
     ****************************************/
     Kokkos::ScopeGuard scope(argc, argv);
     ddc::ScopeGuard ddc_scope(argc, argv);
-    MPI_Init(&argc, &argv);
+    int provided;
+	MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+
+	if (provided != MPI_THREAD_MULTIPLE) {
+		printf("provided level = %d, required level = %d\n", provided, MPI_THREAD_MULTIPLE);
+		return -1;
+	}
     int rank;
     int n_iterations=1; // default number of iterations for in-situ diagnostics test
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
