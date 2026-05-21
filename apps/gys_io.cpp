@@ -412,9 +412,9 @@ void write_fluid_moments(
                 .with("mean_velocity", mean_velocity_host)
                 .with("temperature", temperature_host);
 
-        ddc::PdiEvent("write_reduced_temperature")
-                .with("spec0_temp", temperature_host[IdxSp(temperature_host.domain().front())])
-                .with("sepc1_temp", temperature_host[IdxSp(temperature_host.domain().front())+1]);
+        ddc::PdiEvent("write_reduced_density")
+                .with("spec0_density", density_host[IdxSp(density_host.domain().front())])
+                .with("sepc1_density", density_host[IdxSp(density_host.domain().front())+1]);
     }
 }
 
@@ -497,7 +497,14 @@ int main(int argc, char** argv)
     if (rank == 0) {
         cout << "Initialising 5D particle distribution function." << endl;
     }
+
+    MPI_Comm main_comm = MPI_COMM_WORLD;
+
     PDI_init(configs.conf_pdi);
+    uintptr_t pconf = (uintptr_t)&configs.conf_pdi;
+	PDI_expose("conf_yaml", &pconf, PDI_OUT);
+    PDI_expose("mpi_comm", &main_comm, PDI_INOUT); // <-- allow plugin to set, returns Damaris client comm
+
     //---------------------------------------------------------
     // Import Python packages
     //---------------------------------------------------------
@@ -506,7 +513,7 @@ int main(int argc, char** argv)
     // Initialisation of the global and local mesh (sp, space, phase-space)
     //---------------------------------------------------------
     IdxRangeSpTor3DV2D const global_mesh = initialise_mesh(rank, configs.conf_gyselax);
-    MPITransposeAllToAll<Tor3DSplit, V2DSplit> transpose(global_mesh, MPI_COMM_WORLD);
+    MPITransposeAllToAll<Tor3DSplit, V2DSplit> transpose(global_mesh, main_comm);
     IdxRangeSpTor3DV2D local_mesh = transpose.get_local_idx_range<Tor3DSplit>();
     IdxRangeSpV2DTor3D idxrange_v2D_split = transpose.get_local_idx_range<V2DSplit>();
     //---------------------------------------------------------

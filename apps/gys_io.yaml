@@ -35,5 +35,5 @@ SpeciesInfo:
 
 Application: 
   version: "in-situ-diagnostic"  # "mpi_transpose"/"in-situ-diagnostic"
-  n_iterations: 20    # number of iterations for in-situ diagnostics test
+  n_iterations: 1    # number of iterations for in-situ diagnostics test
   eps: 0.1    # perturbation amplitude for in-situ diagnostics test

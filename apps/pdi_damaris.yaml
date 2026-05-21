@@ -99,6 +99,8 @@ metadata:
   temperature_extents: { type: array, subtype: size_t, size: 4 }
 
   iteration: int
+  mpi_comm: MPI_Comm
+  conf_yaml: uintptr_t
 data:
   #-- Distribution function
   fdistribu_sptor3Dv2D:
@@ -119,24 +121,14 @@ data:
     type: array
     subtype: double
     size: [ '$temperature_extents[0]', '$temperature_extents[1]', '$temperature_extents[2]', '$temperature_extents[3]' ]
-  spec0_temp:
+  spec0_density:
     type: array
     subtype: double
-    size: [ '$temperature_extents[1]', '$temperature_extents[2]', '$temperature_extents[3]' ]
-  spec1_temp:
+    size: [ '$density_extents[1]', '$density_extents[2]', '$density_extents[3]' ]
+  spec1_density:
     type: array
     subtype: double
-    size: [ '$temperature_extents[1]', '$temperature_extents[2]', '$temperature_extents[3]' ]
-# pdi:
-#   metadata:
-#     iter:   int                    # current iteration id
-#     dsize:  { size: 2, type: array, subtype: int } # local data size including ghosts/boundary
-#     psize:  { size: 2, type: array, subtype: int } # number of processes in each dimension
-#     pcoord: { size: 2, type: array, subtype: int } # coordinate of the process
-#     mpi_comm: MPI_Comm
-#     conf_yaml: uintptr_t
-#   data:
-#     main_field: { size: [ '$dsize[0]', '$dsize[1]' ], type: array, subtype: double }
+    size: [ '$density_extents[1]', '$density_extents[2]', '$density_extents[3]' ]
   
 plugins:
   mpi:
@@ -155,7 +147,7 @@ plugins:
     - file: fdistribu_5D_output.h5
       on_event: write_fdistribu
       collision_policy: replace_and_warn
-      communicator: $MPI_COMM_WORLD
+      communicator: $mpi_comm
       datasets:
         fdistribu_sptor3Dv2D:
           type: array
@@ -181,12 +173,12 @@ plugins:
         mean_velocity: ~
         temperature: ~
 
-    - file: 'spec0_temp.h5'
-      on_event: [write_reduced_temperature]
+    - file: 'spec0_density.h5'
+      on_event: [write_reduced_density]
       collision_policy: replace_and_warn
       write:
-        spec0_temp: ~
-        # spec1_temp: ~
+        spec0_density: ~
+        # spec1_density: ~
     
     
   trace: ~
@@ -214,49 +206,48 @@ plugins:
           temperature = fm.compute_temperature(fdistribu, density, velocity).compute()
 
           ds_out = xr.Dataset({
-              'density': density[0,:,:,0],
+              'density': density[0,:,:,:],
               'velocity': velocity,
               'temperature': temperature,
           })
           file_name = 'fluid_moments_iter'+str(iter)+'.nc'
           ds_out.to_netcdf(file_name)
 
-    # damaris:
-    #   architecture: 
-    #     sim_name: gysela-miniapp  
-    #     domains: 1
-    #     dedicated:
-    #       core: 1
-    #       node: 0 
-    #   client_comm_get: mpi_comm # Needed to return the Damaris client comm
-    #   datasets:
-    #     - dataset: 
-    #         name: main_field
-    #         layout: main_field_layout
-    #         storage: hdf5_example
-    #   layouts:
-    #     - layout: 
-    #         name: main_field_layout
-    #         type: double
-    #         global: ['$psize[0]*($dsize[0]-2)', '$psize[1]*($dsize[1]-2)']
-    #         dimensions: [ '$dsize[0]', '$dsize[1]' ] # process dim, with ghosts/boundaries
-    #         ghosts: '1:1,1:1'
-    #         depends_on: [dsize, psize] # This will help ensure an update of the layout attributes value to Damaris lib once the metadata are exposed (using Damaris Parameters in the background)!
-    #   storages:
-    #     - storage:
-    #         name: hdf5_example
-    #         type: HDF5
-    #         file_mode: FilePerCore       # or FilePerCore
-    #         files_path: ./HDF5_files_without_is_client/   # Where to save files
+  damaris:
+    architecture: 
+      sim_name: gysela-miniapp  
+      domains: 1
+      dedicated:
+        core: 1
+        node: 0 
+    client_comm_get: mpi_comm # Needed to return the Damaris client comm
+    datasets:
+      - dataset: 
+          name: spec0_density_ds
+          layout: spec0_density_layout
+          storage: HDF5
+    layouts:
+      - layout: 
+          name: spec0_density_layout
+          type: double
+          global: ['$density_extents[1]', '$density_extents[2]', '$density_extents[3]' ]
+          dimensions: [ '$density_extents[1]', '$density_extents[2]', '$density_extents[3]'  ] # process dim, with ghosts/boundaries
+          ghosts: '0:0,0:0,0:0'
+          depends_on: [density_extents] # This will help ensure an update of the layout attributes value to Damaris lib once the metadata are exposed (using Damaris Parameters in the background)!
+    storages:
+      - storage:
+          name: HDF5
+          type: HDF5
+          file_mode: Collective       # or FilePerCore
+          files_path: ./damaris_output/   # Where to save files
           
-    #   write: 
-    #     main_field: # the name of the data to write, if dataset not specified afterward! ~meme notion de dataset hdf5
-    #       dataset: main_field 
-    #       when: '$iter<10'   # do only write the first 10 iterations (0...9), Default at every iteration.
-    #       position: ['($dsize[0]-2)*$pcoord[0]', '($dsize[1]-2)*$pcoord[1]'] # ~start de dataset_selection par iteration
+    write: 
+      spec0_density: # the name of the data to write, if dataset not specified afterward! ~meme notion de dataset hdf5
+        dataset: spec0_density_ds
+        position: [0,0,0] # ~start de dataset_selection par iteration
 
-    #   log:
-    #     file_name: example_without_is_client
-    #     rotation_size: 5
-    #     log_level: info
-    #     flush: true
+    log:
+      file_name: damaris_log
+      rotation_size: 5
+      log_level: info
+      flush: true
