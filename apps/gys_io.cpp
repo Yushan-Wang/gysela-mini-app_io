@@ -570,6 +570,7 @@ int main(int argc, char** argv)
             if (rank == 0) {
                 cout << "Iteration " << i << endl;
             }
+            PDI_expose("iteration", &i, PDI_OUT);
             // Compute fluid moments in Python (density, mean velocity, temperature) in PDI
             compute_fluid_moments_pycall(rank, local_mesh, global_mesh, allfdistribu_host);
             // Create a working copy from the initial distribution

@@ -97,6 +97,8 @@ metadata:
   density_extents: { type: array, subtype: size_t, size: 4 }
   mean_velocity_extents: { type: array, subtype: size_t, size: 4 }
   temperature_extents: { type: array, subtype: size_t, size: 4 }
+
+  iteration: int
 data:
   #-- Distribution function
   fdistribu_sptor3Dv2D:
@@ -197,7 +199,7 @@ plugins:
           import xarray as xr
           from fluid_moments import FluidMoments
       FluidMoments:
-        with: {fdistribu_raw: $fdistribu_sptor3Dv2D, vpar_vals: $vpar, mu_vals: $mu}
+        with: {fdistribu_raw: $fdistribu_sptor3Dv2D, vpar_vals: $vpar, mu_vals: $mu, iter: $iteration}
         exec: |
           fdistribu = xr.DataArray(
               fdistribu_raw,
@@ -212,11 +214,12 @@ plugins:
           temperature = fm.compute_temperature(fdistribu, density, velocity).compute()
 
           ds_out = xr.Dataset({
-              'density': density,
+              'density': density[0,:,:,0],
               'velocity': velocity,
               'temperature': temperature,
           })
-          ds_out.to_netcdf('fluid_moments.nc')
+          file_name = 'fluid_moments_iter'+str(iter)+'.nc'
+          ds_out.to_netcdf(file_name)
 
     # damaris:
     #   architecture: 
