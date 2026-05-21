@@ -411,6 +411,10 @@ void write_fluid_moments(
                 .with("density", density_host)
                 .with("mean_velocity", mean_velocity_host)
                 .with("temperature", temperature_host);
+
+        ddc::PdiEvent("write_reduced_temperature")
+                .with("spec0_temp", temperature_host[IdxSp(temperature_host.domain().front())])
+                .with("sepc1_temp", temperature_host[IdxSp(temperature_host.domain().front())+1]);
     }
 }
 
